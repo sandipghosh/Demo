@@ -1,0 +1,37 @@
+name: Send Email on Review Complete
+
+on:
+  pull_request_review:
+    types:
+      - submitted
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Get Pull Request Information
+        id: pr
+        run: echo "::set-output name=number::$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
+
+      - name: Get Pull Request Owner
+        id: pr_owner
+        run: |
+          OWNER=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ steps.pr.outputs.number }}/user" \
+                  | jq --raw-output .email)
+          echo "::set-output name=owner::${OWNER}"
+
+      - name: Send Email on Review Complete
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          TO_EMAIL: ${{ steps.pr_owner.outputs.owner }}
+        run: |
+          # Add your script or command to send an email here
